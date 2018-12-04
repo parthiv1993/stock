@@ -2,7 +2,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 ## Configurations needed to do. 
 
-AppConstants.js => change the server url and listeners. 
+AppConstants.js => change the server url and listeners. <br>
 App.js => error handling when the server call fails
 
 ## Available Scripts
