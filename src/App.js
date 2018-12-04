@@ -1,28 +1,88 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import DisplayTable from './DisplayTable';
+import Record from './Record';
+import io from 'socket.io-client';
+import AppConstants from './AppConstants';
 
 class App extends Component {
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
-    );
-  }
-}
+	constructor(props) {
+		super(props)
+		
+		this.state ={
+			data :{}
+		}
+		this.socket = null;
+	}
+	
+	componentDidMount() {
+		// Start a connection to server
+		this.socket = io(AppConstants.serverConfig.url);
 
-export default App;
+		// error handling in place to make sure the user is informed if something goes wrong
+		this.socket.on('error',(err)=>{
+			this.handleError(err);
+			this.setState({})
+		})
+		this.socket.on('connect_error', (err)=> {
+			this.handleError(err);
+			this.setState({});
+		});
+		this.socket.on('connect_failed',(err)=>{
+			this.handleError(err);
+			this.setState({});
+		})
+
+		// join a room listening to events
+		this.socket.emit(AppConstants.serverConfig.startCommand)
+
+		// listening to a particular event and updating the state
+		this.socket.on(AppConstants.serverConfig.updateListener,(newData)=>{
+			this.setState((prevState)=>this.updateState(prevState,newData))
+		})
+	}
+
+	handleError(err){
+		// Handle error by showing toaster or bluring out screen denoting the data is not getting refreshed
+		// console.log(err)
+	}
+	
+	// independent function that returns a newly formed state to call setState
+	updateState(prevState,newData) {
+		const data = Object.assign({},prevState.data)
+		
+		// for each script in new data
+		newData.forEach(
+			([scriptName,price])=>{
+				// check for existance of that record
+				if(data[scriptName]) {
+					const recordScript = data[scriptName];
+
+					// if it exist then update the price using method of Record class
+					recordScript.updatePrice(price)
+				}
+				else {
+					// if it's a new script then create a new entry for it
+					data[scriptName] = new Record(scriptName,price);
+				}
+			}
+		)
+		return({data})
+			
+	}
+		
+	componentWillUnmount() {
+		if(this.socket) {
+			this.socket.emit(AppConstants.serverConfig.endCommand)
+		}
+	}
+	
+	render() {
+		// extrating the data from object and passing the data in required format to dump component
+		const data = Object.values(this.state.data);
+		return (
+			<DisplayTable data={data}/>
+			);
+	}
+}
+		
+export default App;	
