@@ -1,46 +1,64 @@
 import React, { Component } from 'react';
 import DisplayTable from './DisplayTable';
 import Record from './Record';
-import io from 'socket.io-client';
 import AppConstants from './AppConstants';
 
 class App extends Component {
 	constructor(props) {
 		super(props)
 		
+		
+		this.reloadInterval = null;
+		this.timeOut = AppConstants.RETRY_PARAMS.RETRY_AFTER;
 		this.state ={
-			data :{}
+			data :{},
+			reloadNeeded : false
 		}
 		this.socket = null;
 	}
 	
 	componentDidMount() {
-		// Start a connection to server
-		this.socket = io(AppConstants.serverConfig.url);
-
-		// error handling in place to make sure the user is informed if something goes wrong
-		this.socket.on('error',(err)=>{
-			this.handleError(err);
-			this.setState({})
-		})
-		this.socket.on('connect_error', (err)=> {
-			this.handleError(err);
-			this.setState({});
-		});
-		this.socket.on('connect_failed',(err)=>{
-			this.handleError(err);
-			this.setState({});
-		})
-
-		// join a room listening to events
-		this.socket.emit(AppConstants.serverConfig.startCommand)
-
-		// listening to a particular event and updating the state
-		this.socket.on(AppConstants.serverConfig.updateListener,(newData)=>{
-			this.setState((prevState)=>this.updateState(prevState,newData))
-		})
+		// Start a connection to socket		
+		this.socket = new WebSocket(AppConstants.serverConfig.url);
+		this.socket.onopen = ()=> {
+			this.timeOut = AppConstants.RETRY_PARAMS.RETRY_AFTER;
+			console.log('open');
+		};
+		
+		this.reloadInterval = setInterval(()=>{
+			console.log('reload checked',this.timeOut)
+			this.timeOut = this.timeOut-AppConstants.RETRY_PARAMS.CHECK_EVERY;
+			if(this.timeOut<0) {
+				console.log('reload tried',this.socket)
+				this.setState({reloadNeeded : true})
+				this.socket = new WebSocket(AppConstants.serverConfig.url);
+			}
+		},AppConstants.RETRY_PARAMS.CHECK_EVERY * 1000)
+		
+		this.socket.onerror = (e)=>{
+			console.log('e',e)
+		}
+		
+		// listening to a particular event and updating the state		
+		this.socket.onmessage = (e)=>{
+			this.timeOut = AppConstants.RETRY_PARAMS.RETRY_AFTER;
+			this.setState((prevState)=>this.updateState(prevState,JSON.parse(e.data)))
+		}
+		
+		this.socket.onclose = ()=> {
+			this.handleError();
+			// ASK THE USER TO RELOAD THE PAGE
+			console.log('close');
+		};
 	}
 
+	componentWillUnmount(){
+		clearInterval(this.reloadInterval)
+		if(this.socket) {
+			this.socket.close()
+		}
+	}
+	
 	handleError(err){
 		// Handle error by showing toaster or bluring out screen denoting the data is not getting refreshed
 		// console.log(err)
@@ -56,7 +74,7 @@ class App extends Component {
 				// check for existance of that record
 				if(data[scriptName]) {
 					const recordScript = data[scriptName];
-
+					
 					// if it exist then update the price using method of Record class
 					recordScript.updatePrice(price)
 				}
@@ -65,24 +83,24 @@ class App extends Component {
 					data[scriptName] = new Record(scriptName,price);
 				}
 			}
-		)
-		return({data})
+			)
+			return({data})
 			
-	}
-		
-	componentWillUnmount() {
-		if(this.socket) {
-			this.socket.emit(AppConstants.serverConfig.endCommand)
 		}
-	}
-	
-	render() {
-		// extrating the data from object and passing the data in required format to dump component
-		const data = Object.values(this.state.data);
-		return (
-			<DisplayTable data={data}/>
-			);
-	}
-}
 		
-export default App;	
+		render() {
+			// extrating the data from object and passing the data in required format to dump component
+			const data = Object.values(this.state.data);
+			const reloadNeeded = this.state.reloadNeeded;
+			return (
+					<div>
+				    	<DisplayTable data={data}/>
+						{reloadNeeded && <div>
+							PLEASE RELOAD YOUR PAGE. IT"S BEEN more than 30 Seconds Since last reload
+						</div>}
+					</div>
+				);
+			}
+		}
+		
+		export default App;	

@@ -11,17 +11,11 @@ export default {
         WHITE : '#ffffff'
     },
 
-    // THESE ARE RELATED TO API CALLS AND OTHER THINGS,
     serverConfig: {
-        url : 'localhost:3003',
-        startCommand : 'join',
-        updateListener : 'stock',
-        endCommand : 'leave'
+        url : 'ws://stocks.mnet.website'
     },
-    // serverConfig: {
-    //     url : 'ws://stocks.mnet.website',
-    //     startCommand : 'join',
-    //     updateListener : 'message',
-    //     endCommand : 'leave'
-    // },
+    RETRY_PARAMS : {
+        RETRY_AFTER : 30,
+        CHECK_EVERY : 5
+    }
 }
