@@ -92,9 +92,14 @@ class App extends Component {
 			// extrating the data from object and passing the data in required format to dump component
 			const data = Object.values(this.state.data);
 			const reloadNeeded = this.state.reloadNeeded;
+			const style ={
+				opacity : reloadNeeded? '0.2' : '1'
+			}
 			return (
 					<div>
-				    	<DisplayTable data={data}/>
+						<div style={style}> 
+				    		<DisplayTable data={data}/>
+						</div>
 						{reloadNeeded && <div>
 							PLEASE RELOAD YOUR PAGE. IT"S BEEN more than 30 Seconds Since last reload
 						</div>}
